@@ -1,14 +1,14 @@
 import { Component } from "@angular/core";
 import { LoadingController } from "@ionic/angular";
 
-import { File } from "@ionic-native/file/ngx";
+import { File, FileEntry } from "@ionic-native/file/ngx";
 import { FilePath } from "@ionic-native/file-path/ngx";
 import { Camera, CameraOptions } from "@ionic-native/camera/ngx";
 import { MediaCapture } from "@ionic-native/media-capture/ngx";
 
 import { AngularFireStorage } from "@angular/fire/storage";
 
-import { finalize, tap } from "rxjs/operators";
+import { finalize } from "rxjs/operators";
 import { Observable } from "rxjs";
 
 @Component({
@@ -17,9 +17,8 @@ import { Observable } from "rxjs";
   styleUrls: ["home.page.scss"]
 })
 export class HomePage {
-  downloadUrl: Observable<string>;
-  progressPercentage: Observable<any>;
   loading;
+  downloadUrl: Observable<string>;
   constructor(
     private camera: Camera,
     private file: File,
@@ -38,7 +37,7 @@ export class HomePage {
         mediaType: this.camera.MediaType.PICTURE
       };
       const imagePath = await this.camera.getPicture(options);
-      this.uploadImage(imagePath);
+      this.uploadImageToFirebaseStorage(imagePath);
     } catch (err) {
       console.error("err", err);
     }
@@ -50,13 +49,13 @@ export class HomePage {
         limit: 1,
         duration: 7
       });
-      this.uploadVideo(videoData[0].fullPath);
+      this.uploadVideoToFirebaseStorage(videoData[0].fullPath);
     } catch (err) {
       console.error("err", err);
     }
   }
 
-  async loadImage() {
+  async loadImageFromLibrary() {
     try {
       const options: CameraOptions = {
         quality: 100,
@@ -65,13 +64,13 @@ export class HomePage {
         mediaType: this.camera.MediaType.PICTURE
       };
       const imagePath = await this.camera.getPicture(options);
-      this.uploadImage(imagePath);
+      this.uploadImageToFirebaseStorage(imagePath);
     } catch (err) {
       console.error("err", err);
     }
   }
 
-  async loadVideo() {
+  async loadVideoFromLibrary() {
     try {
       const options: CameraOptions = {
         quality: 100,
@@ -80,27 +79,36 @@ export class HomePage {
         mediaType: this.camera.MediaType.VIDEO
       };
       const videoPath = await this.camera.getPicture(options);
-      this.uploadVideo(`file://${videoPath}`);
+      this.uploadVideoToFirebaseStorage(`file://${videoPath}`);
     } catch (err) {
       console.error("err", err);
     }
   }
 
-  async uploadImage(imagePath) {
+  async uploadImageToFirebaseStorage(imagePath) {
     try {
-      const file = await this.file.resolveLocalFilesystemUrl(
+      const fileEntry: Partial<
+        FileEntry
+      > = await this.file.resolveLocalFilesystemUrl(
         await this.filePath.resolveNativePath(imagePath)
       );
-      file.getMetadata(
-        async data => {
-          const sizeInMb = data.size / 1024 / 1024;
-          const dirPathSegments = file.nativeURL.split("/");
-          const name = dirPathSegments.pop();
-          const dirPath = dirPathSegments.join("/");
+      console.log("fileEntry", fileEntry);
+      fileEntry.file(
+        async fileDetails => {
+          console.log("fileDetails", fileDetails);
+          const { nativeURL } = fileEntry;
+          const { size, type, name } = fileDetails;
+          const sizeInMb = size / 1024 / 1024;
+          console.log("sizeInMb", sizeInMb);
+          console.log("type", type);
+          console.log("name", name);
+          const dirPath = nativeURL.substring(0, nativeURL.lastIndexOf("/"));
           const buffer = await this.file.readAsArrayBuffer(dirPath, name);
+          const imageBlob = new Blob([buffer], { type });
+          console.log("imageBlob", imageBlob);
           const uploadPath = `tauqeerStorage/${new Date().getTime()}_${name}`;
           const fileRef = this.storage.ref(uploadPath);
-          const uploadFile = this.storage.upload(uploadPath, buffer);
+          const uploadFile = this.storage.upload(uploadPath, imageBlob);
           this.presentLoading();
           uploadFile
             .snapshotChanges()
@@ -122,21 +130,30 @@ export class HomePage {
     }
   }
 
-  async uploadVideo(videoPath) {
+  async uploadVideoToFirebaseStorage(videoPath) {
     try {
-      const file = await this.file.resolveLocalFilesystemUrl(
+      const fileEntry: Partial<
+        FileEntry
+      > = await this.file.resolveLocalFilesystemUrl(
         await this.filePath.resolveNativePath(videoPath)
       );
-      file.getMetadata(
-        async data => {
-          const sizeInMb = data.size / 1024 / 1024;
-          const dirPathSegments = file.nativeURL.split("/");
-          const name = dirPathSegments.pop();
-          const dirPath = dirPathSegments.join("/");
+      console.log("fileEntry", fileEntry);
+      fileEntry.file(
+        async fileDetails => {
+          console.log("fileDetails", fileDetails);
+          const { nativeURL } = fileEntry;
+          const { size, type, name } = fileDetails;
+
+          const sizeInMb = size / 1024 / 1024;
+          console.log("sizeInMb", sizeInMb);
+          console.log("type", type);
+          console.log("name", name);
+          const dirPath = nativeURL.substring(0, nativeURL.lastIndexOf("/"));
           const buffer = await this.file.readAsArrayBuffer(dirPath, name);
+          const videoBlob = new Blob([buffer], { type });
           const uploadPath = `tauqeerStorage/${new Date().getTime()}_${name}`;
           const fileRef = this.storage.ref(uploadPath);
-          const uploadFile = this.storage.upload(uploadPath, buffer);
+          const uploadFile = this.storage.upload(uploadPath, videoBlob);
           this.presentLoading();
           uploadFile
             .snapshotChanges()

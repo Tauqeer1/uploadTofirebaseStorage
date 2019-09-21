@@ -9,10 +9,10 @@
 <ion-content>
   <ion-button expand="block" (click)="captureImage()">Capture image</ion-button>
   <ion-button expand="block" (click)="captureVideo()">Capture video</ion-button>
-  <ion-button expand="block" (click)="loadImage()"
+  <ion-button expand="block" (click)="loadImageFromLibrary()"
     >Image from library</ion-button
   >
-  <ion-button expand="block" (click)="loadVideo()"
+  <ion-button expand="block" (click)="loadVideoFromLibrary()"
     >Video from Library</ion-button
   >
   <!-- <div *ngIf="!downloadUrl && progressPercentage | async as progress">
